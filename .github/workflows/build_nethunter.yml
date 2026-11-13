@@ -26,18 +26,23 @@ jobs:
           patch -p1 < mac80211_injection.patch || echo "Injection patch skipped or already applied"
           patch -p1 < hid_gadget.patch || echo "HID patch skipped or already applied"
 
-      - name: Compile Kernel
+      - name: Compile Kernel & Modules
         run: |
           export ARCH=arm64
           export SUBARCH=arm64
           make O=out ARCH=arm64 vendor/lavender-perf_defconfig
+          ./scripts/config --file out/.config -m MAC80211 -m ATH_COMMON -m ATH9K_HW -m ATH9K_COMMON -m ATH9K_HTC
+          make O=out ARCH=arm64 olddefconfig
           make -j$(nproc --all) O=out ARCH=arm64 CC=clang LD=ld.lld AR=llvm-ar NM=llvm-nm OBJCOPY=llvm-objcopy OBJDUMP=llvm-objdump STRIP=llvm-strip CLANG_TRIPLE=aarch64-linux-gnu- CROSS_COMPILE=aarch64-linux-gnu- CROSS_COMPILE_ARM32=arm-linux-gnueabi-
+          make -j$(nproc --all) O=out ARCH=arm64 CC=clang LD=ld.lld AR=llvm-ar NM=llvm-nm OBJCOPY=llvm-objcopy OBJDUMP=llvm-objdump STRIP=llvm-strip CLANG_TRIPLE=aarch64-linux-gnu- CROSS_COMPILE=aarch64-linux-gnu- CROSS_COMPILE_ARM32=arm-linux-gnueabi- INSTALL_MOD_PATH=modules_out INSTALL_MOD_STRIP=1 modules_install
 
-      - name: Package AnyKernel3 Zip
+      - name: Package AnyKernel3 Zip with Modules
         run: |
           git clone --depth=1 https://github.com AnyKernel3
           sed -i 's/do.devicecheck=1/do.devicecheck=0/g' AnyKernel3/anykernel.sh
           cp out/arch/arm64/boot/Image.gz-dtb AnyKernel3/
+          mkdir -p AnyKernel3/modules/vendor/lib/modules
+          find out/modules_out -name "*.ko" -exec cp {} AnyKernel3/modules/vendor/lib/modules/ \;
           cd AnyKernel3
           zip -r9 ../San-NetHunter-Lavender.zip * -x .git README.md *placeholder
 
