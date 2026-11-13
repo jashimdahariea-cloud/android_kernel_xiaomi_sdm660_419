@@ -12,20 +12,12 @@ jobs:
       - name: Checkout Kernel Source
         uses: actions/checkout@v4
         with:
-          depth: 1
+          fetch-depth: 1
 
-      - name: Install Build Dependencies
+      - name: Install Build Dependencies & Official Clang
         run: |
           sudo apt-get update
-          sudo apt-get install -y bc bison build-essential ccache curl flex g++-multilib gcc-multilib git gnupg gperf imagemagick lib32ncurses5-dev lib32readline-dev lib32z1-dev liblz4-tool libncurses5 libncurses5-dev libsdl1.2-dev libssl-dev libxml2 libxml2-utils lzop pngcrush rsync schedtool squashfs-tools xsltproc zip zlib1g-dev python3 wget zstd
-
-      - name: Setup ZyC Clang Toolchain
-        run: |
-          mkdir -p clang
-          cd clang
-          wget -q https://github.com -O clang.tar.gz
-          tar -xf clang.tar.gz
-          rm clang.tar.gz
+          sudo apt-get install -y bc bison build-essential ccache curl flex g++-multilib gcc-multilib git gnupg gperf imagemagick lib32ncurses5-dev lib32readline-dev lib32z1-dev liblz4-tool libncurses5 libncurses5-dev libsdl1.2-dev libssl-dev libxml2 libxml2-utils lzop pngcrush rsync schedtool squashfs-tools xsltproc zip zlib1g-dev python3 wget clang lld llvm gcc-aarch64-linux-gnu gcc-arm-linux-gnueabi
 
       - name: Apply Kali NetHunter Patches (Injection & HID)
         run: |
@@ -38,7 +30,6 @@ jobs:
         run: |
           export ARCH=arm64
           export SUBARCH=arm64
-          export PATH="$PWD/clang/bin:$PATH"
           make O=out ARCH=arm64 vendor/lavender-perf_defconfig
           make -j$(nproc --all) O=out ARCH=arm64 CC=clang LD=ld.lld AR=llvm-ar NM=llvm-nm OBJCOPY=llvm-objcopy OBJDUMP=llvm-objdump STRIP=llvm-strip CLANG_TRIPLE=aarch64-linux-gnu- CROSS_COMPILE=aarch64-linux-gnu- CROSS_COMPILE_ARM32=arm-linux-gnueabi-
 
