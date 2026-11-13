@@ -1,0 +1,53 @@
+name: Build San-NetHunter Kernel (Lavender)
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [ main, master, 4.19 ]
+
+jobs:
+  build:
+    runs-on: ubuntu-22.04
+    steps:
+      - name: Checkout Kernel Source
+        uses: actions/checkout@v4
+        with:
+          depth: 1
+
+      - name: Install Build Dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y bc bison build-essential ccache curl flex g++-multilib gcc-multilib git gnupg gperf imagemagick lib32ncurses5-dev lib32readline-dev lib32z1-dev liblz4-tool libncurses5 libncurses5-dev libsdl1.2-dev libssl-dev libxml2 libxml2-utils lzop pngcrush rsync schedtool squashfs-tools xsltproc zip zlib1g-dev python3 wget
+
+      - name: Setup Proton Clang Toolchain
+        run: |
+          git clone --depth=1 https://github.com clang
+
+      - name: Apply Kali NetHunter Patches (Injection & HID)
+        run: |
+          wget -q https://gitlab.com || true
+          wget -q https://gitlab.com || true
+          patch -p1 < mac80211_injection.patch || echo "Injection patch skipped or already applied"
+          patch -p1 < hid_gadget.patch || echo "HID patch skipped or already applied"
+
+      - name: Compile Kernel
+        run: |
+          export ARCH=arm64
+          export SUBARCH=arm64
+          export PATH="$PWD/clang/bin:$PATH"
+          make O=out ARCH=arm64 vendor/lavender-perf_defconfig
+          make -j$(nproc --all) O=out ARCH=arm64 CC=clang CLANG_TRIPLE=aarch64-linux-gnu- CROSS_COMPILE=aarch64-linux-gnu- CROSS_COMPILE_ARM32=arm-linux-gnueabi-
+
+      - name: Package AnyKernel3 Zip
+        run: |
+          git clone --depth=1 https://github.com AnyKernel3
+          sed -i 's/do.devicecheck=1/do.devicecheck=0/g' AnyKernel3/anykernel.sh
+          cp out/arch/arm64/boot/Image.gz-dtb AnyKernel3/
+          cd AnyKernel3
+          zip -r9 ../San-NetHunter-Lavender.zip * -x .git README.md *placeholder
+
+      - name: Upload Flashable Kernel Zip
+        uses: actions/upload-artifact@v4
+        with:
+          name: San-NetHunter-Lavender
+          path: San-NetHunter-Lavender.zip
